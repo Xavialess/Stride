@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Unless specified by the user, do not create markdown files after completing a task. 
