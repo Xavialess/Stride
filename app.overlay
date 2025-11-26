@@ -22,14 +22,35 @@
  *   - SCL: P0.05 (Pin 5)
  */
 
+&pinctrl {
+	i2c0_default: i2c0_default {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 4)>,
+				<NRF_PSEL(TWIM_SCL, 0, 5)>;
+		};
+	};
+
+	i2c0_sleep: i2c0_sleep {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 4)>,
+				<NRF_PSEL(TWIM_SCL, 0, 5)>;
+			low-power-enable;
+		};
+	};
+};
+
 &i2c0 {
 	compatible = "nordic,nrf-twim";
 	status = "okay";
 	clock-frequency = <I2C_BITRATE_STANDARD>; /* 100 kHz */
 	
-	/* Seeed XIAO BLE Sense I2C pins */
-	sda-pin = <4>;   /* P0.04 */
-	scl-pin = <5>;   /* P0.05 */
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-1 = <&i2c0_sleep>;
+	pinctrl-names = "default", "sleep";
+	
+	/* Buffer sizes for reliable I2C operation */
+	zephyr,concat-buf-size = <16>;
+	zephyr,flash-buf-max-size = <16>;
 
 	drv2605l: drv2605l@5a {
 		compatible = "ti,drv2605l";
