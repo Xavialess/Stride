@@ -1,0 +1,336 @@
+================================================================================
+                    PERIPHERAL UART - MODULE ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              MAIN APPLICATION                                │
+│                                  (main.c)                                    │
+│                                                                              │
+│  • System initialization                                                     │
+│  • Module coordination                                                       │
+│  • BLE data received callback                                                │
+└──────────────┬───────────────────────────────────────────────────────────────┘
+               │
+               │ Initializes and coordinates
+               │
+    ┌──────────┼──────────┬──────────────┬──────────────┐
+    │          │          │              │              │
+    ▼          ▼          ▼              ▼              ▼
+┌────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌──────────────┐
+│  UART  │ │  BLE   │ │  GPIO  │ │  THREAD  │ │   THREADS    │
+│HANDLER │ │HANDLER │ │HANDLER │ │ MANAGER  │ │              │
+└────────┘ └────────┘ └────────┘ └──────────┘ └──────────────┘
+
+
+================================================================================
+                              MODULE DETAILS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           UART HANDLER MODULE                                │
+│                      (uart_handler.c / uart_handler.h)                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Responsibilities:                                                           │
+│    • UART device initialization                                              │
+│    • Asynchronous UART TX/RX operations                                      │
+│    • Buffer management (FIFOs)                                               │
+│    • USB device support                                                      │
+│                                                                              │
+│  Key Components:                                                             │
+│    ┌──────────────────┐         ┌──────────────────┐                        │
+│    │ fifo_uart_tx_data│         │ fifo_uart_rx_data│                        │
+│    │   (TX Queue)     │         │   (RX Queue)     │                        │
+│    └──────────────────┘         └──────────────────┘                        │
+│                                                                              │
+│  Public API:                                                                 │
+│    • uart_handler_init()                                                     │
+│    • uart_transmit()                                                         │
+│    • uart_get_rx_fifo()                                                      │
+│    • uart_get_tx_fifo()                                                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            BLE HANDLER MODULE                                │
+│                       (ble_handler.c / ble_handler.h)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Responsibilities:                                                           │
+│    • Bluetooth LE initialization                                             │
+│    • Advertising management                                                  │
+│    • Connection management                                                   │
+│    • Nordic UART Service (NUS)                                               │
+│    • Security and pairing                                                    │
+│                                                                              │
+│  Key Components:                                                             │
+│    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐                │
+│    │ current_conn │    │  auth_conn   │    │ ble_init_ok  │                │
+│    │ (Connection) │    │  (Pairing)   │    │ (Semaphore)  │                │
+│    └──────────────┘    └──────────────┘    └──────────────┘                │
+│                                                                              │
+│  Public API:                                                                 │
+│    • ble_handler_init()                                                      │
+│    • ble_start_advertising()                                                 │
+│    • ble_send_data()                                                         │
+│    • ble_wait_init()                                                         │
+│    • ble_confirm_passkey()                                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            GPIO HANDLER MODULE                               │
+│                       (gpio_handler.c / gpio_handler.h)                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Responsibilities:                                                           │
+│    • LED control and status indication                                       │
+│    • Button handling                                                         │
+│    • Error state management                                                  │
+│                                                                              │
+│  Hardware:                                                                   │
+│    LEDs:                          Buttons:                                   │
+│      • LED1 - Run Status            • BTN1 - Accept Passkey                  │
+│      • LED2 - Connection Status     • BTN2 - Reject Passkey                  │
+│                                                                              │
+│  Public API:                                                                 │
+│    • gpio_handler_init()                                                     │
+│    • gpio_set_led()                                                          │
+│    • gpio_toggle_led()                                                       │
+│    • gpio_error_state()                                                      │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          THREAD MANAGER MODULE                               │
+│                    (thread_manager.c / thread_manager.h)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Responsibilities:                                                           │
+│    • Thread lifecycle management                                             │
+│    • Thread coordination                                                     │
+│    • Centralized thread definitions                                          │
+│                                                                              │
+│  Managed Threads:                                                            │
+│                                                                              │
+│    ┌─────────────────────────────────────────────────────────────┐          │
+│    │  Thread 1: BLE Write Thread                                 │          │
+│    │  ─────────────────────────────────────────────────────────  │          │
+│    │  Priority: 7                                                │          │
+│    │  Stack: CONFIG_BT_NUS_THREAD_STACK_SIZE                    │          │
+│    │  Purpose: UART RX → BLE TX                                 │          │
+│    │  Entry: ble_write_thread_entry()                           │          │
+│    └─────────────────────────────────────────────────────────────┘          │
+│                                                                              │
+│    ┌─────────────────────────────────────────────────────────────┐          │
+│    │  Thread 2: LED Blink Thread                                │          │
+│    │  ─────────────────────────────────────────────────────────  │          │
+│    │  Priority: 7                                                │          │
+│    │  Stack: 1024 bytes                                          │          │
+│    │  Purpose: Status LED blinking                               │          │
+│    │  Entry: led_blink_thread_entry()                           │          │
+│    └─────────────────────────────────────────────────────────────┘          │
+│                                                                              │
+│  Public API:                                                                 │
+│    • thread_manager_init()                                                   │
+│    • ble_write_thread_entry()                                                │
+│    • led_blink_thread_entry()                                                │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                              DATA FLOW DIAGRAM
+================================================================================
+
+UART to BLE (Outgoing Data):
+─────────────────────────────
+
+    ┌──────┐
+    │ UART │  Data arrives
+    │  RX  │
+    └───┬──┘
+        │
+        ▼
+    ┌─────────────┐
+    │  uart_cb()  │  UART callback
+    └──────┬──────┘
+           │
+           ▼
+    ┌──────────────────┐
+    │fifo_uart_rx_data │  Place in RX FIFO
+    └────────┬─────────┘
+             │
+             ▼
+    ┌───────────────────────┐
+    │ BLE Write Thread      │  Read from FIFO
+    │ (ble_write_thread)    │
+    └──────────┬────────────┘
+               │
+               ▼
+    ┌────────────────────┐
+    │  ble_send_data()   │  Send over BLE
+    └──────────┬─────────┘
+               │
+               ▼
+    ┌──────────────────┐
+    │   BLE NUS TX     │  Transmit
+    └──────────────────┘
+
+
+BLE to UART (Incoming Data):
+─────────────────────────────
+
+    ┌──────────────┐
+    │  BLE NUS RX  │  Data arrives
+    └──────┬───────┘
+           │
+           ▼
+    ┌──────────────────┐
+    │ bt_receive_cb()  │  BLE callback
+    └────────┬─────────┘
+             │
+             ▼
+    ┌──────────────────────────┐
+    │ on_ble_data_received()   │  App callback
+    └────────┬─────────────────┘
+             │
+             ▼
+    ┌──────────────────┐
+    │ uart_transmit()  │  Transmit over UART
+    └────────┬─────────┘
+             │
+             ▼
+    ┌──────────────────┐
+    │    UART TX       │  Send data
+    └──────────────────┘
+             │
+             │ (if busy)
+             ▼
+    ┌──────────────────┐
+    │fifo_uart_tx_data │  Queue for later
+    └──────────────────┘
+
+
+================================================================================
+                          THREAD SYNCHRONIZATION
+================================================================================
+
+Synchronization Primitives:
+────────────────────────────
+
+┌────────────────────┐
+│   ble_init_ok      │  Semaphore - Ensures BLE is ready before use
+└────────────────────┘
+
+┌────────────────────┐
+│ fifo_uart_tx_data  │  FIFO - Thread-safe UART TX queue
+└────────────────────┘
+
+┌────────────────────┐
+│ fifo_uart_rx_data  │  FIFO - Thread-safe UART RX queue
+└────────────────────┘
+
+┌────────────────────┐
+│    adv_work        │  Work Queue - Advertising work item
+└────────────────────┘
+
+┌────────────────────┐
+│    uart_work       │  Work Queue - UART buffer allocation
+└────────────────────┘
+
+
+Thread Interaction:
+────────────────────
+
+Main Thread          BLE Write Thread      LED Blink Thread
+    │                      │                       │
+    │ Initialize           │                       │
+    │ all modules          │                       │
+    │                      │                       │
+    │                      │ Wait for              │
+    │                      │ ble_init_ok           │
+    │                      │ semaphore             │
+    │                      │                       │
+    │ Signal init          │                       │
+    │ complete ────────────►                       │
+    │                      │                       │
+    │                      │ Start processing      │
+    │                      │ UART RX FIFO          │
+    │                      │                       │
+    │                      │                       │ Blink LED
+    │                      │                       │ every 1s
+    │                      │                       │
+    │ Sleep forever        │ Process data          │ Blink...
+    │ (K_FOREVER)          │ continuously          │
+    │                      │                       │
+
+
+================================================================================
+                          ADDING NEW THREADS
+================================================================================
+
+To add a new thread, follow these steps:
+
+1. Create thread entry function:
+   ┌─────────────────────────────────────────────────────────┐
+   │ void my_thread_entry(void)                              │
+   │ {                                                       │
+   │     LOG_INF("Thread started");                          │
+   │     while (1) {                                         │
+   │         // Do work                                      │
+   │         k_sleep(K_MSEC(100));                           │
+   │     }                                                   │
+   │ }                                                       │
+   └─────────────────────────────────────────────────────────┘
+
+2. Define thread in thread_manager.c:
+   ┌─────────────────────────────────────────────────────────┐
+   │ K_THREAD_DEFINE(my_thread_id,                           │
+   │                 STACK_SIZE,                             │
+   │                 my_thread_entry,                        │
+   │                 NULL, NULL, NULL,                       │
+   │                 PRIORITY, 0, 0);                        │
+   └─────────────────────────────────────────────────────────┘
+
+3. Declare in thread_manager.h (if needed externally):
+   ┌─────────────────────────────────────────────────────────┐
+   │ void my_thread_entry(void);                             │
+   └─────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                              MODULE DEPENDENCIES
+================================================================================
+
+                        main.c
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+          ▼               ▼               ▼
+    uart_handler    ble_handler    gpio_handler
+          │               │               │
+          └───────────────┼───────────────┘
+                          │
+                          ▼
+                   thread_manager
+                          │
+          ┌───────────────┼───────────────┐
+          │               │               │
+          ▼               ▼               ▼
+    uart_handler    ble_handler    gpio_handler
+
+
+Dependency Rules:
+─────────────────
+• main.c depends on all modules
+• thread_manager depends on uart_handler, ble_handler, gpio_handler
+• Handler modules are independent of each other
+• No circular dependencies
+
+
+================================================================================
+

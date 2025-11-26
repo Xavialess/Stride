@@ -9,3 +9,30 @@
 		nordic,nus-uart = &uart0;
 	};
 };
+
+/* 
+ * I2C configuration for DRV2605L Haptic Driver
+ * 
+ * The DRV2605L is connected via I2C at address 0x5A (default).
+ * I2C speed is set to 100 kHz as per Grove Motor specifications.
+ * 
+ * Note: Adjust the I2C bus number and pins based on your board.
+ * This example uses i2c1. Check your board's pinout and modify accordingly.
+ */
+
+&i2c1 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>; /* 100 kHz */
+
+	/* Adjust SDA and SCL pins based on your board's pinout */
+	/* Example pins - modify these for your specific board */
+	/* sda-pin = <26>; */
+	/* scl-pin = <27>; */
+
+	drv2605l: drv2605l@5a {
+		compatible = "ti,drv2605l";
+		reg = <0x5a>;
+		status = "okay";
+	};
+};

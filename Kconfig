@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
 #
 
-source "Kconfig.zephyr"
-
 menu "Nordic UART BLE GATT service sample"
+
+rsource "src/Kconfig"
 
 config BT_NUS_THREAD_STACK_SIZE
 	int "Thread stack size"
@@ -43,3 +43,5 @@ config NVS
 	default y if !(SOC_FLASH_NRF_RRAM || SOC_FLASH_NRF_MRAM)
 
 endmenu
+
+source "Kconfig.zephyr"

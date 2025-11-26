@@ -1,0 +1,80 @@
+#
+# Copyright (c) 2024 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
+#
+
+menu "Application Configuration"
+
+menu "Thread Configuration"
+
+config APP_BLE_WRITE_STACK_SIZE
+	int "BLE write thread stack size"
+	default 2048
+	help
+	  Stack size for the BLE write thread that forwards UART data to BLE.
+
+config APP_BLE_WRITE_PRIORITY
+	int "BLE write thread priority"
+	default 7
+	help
+	  Priority for the BLE write thread. Lower number = higher priority.
+
+config APP_LED_BLINK_STACK_SIZE
+	int "LED blink thread stack size"
+	default 1024
+	help
+	  Stack size for the LED blink thread.
+
+config APP_LED_BLINK_PRIORITY
+	int "LED blink thread priority"
+	default 7
+	help
+	  Priority for the LED blink thread. Lower number = higher priority.
+
+endmenu # Thread Configuration
+
+menu "Power Management"
+
+config APP_POWER_MANAGEMENT
+	bool "Enable power management"
+	default n
+	help
+	  Enable application-level power management features.
+
+config APP_IDLE_TIMEOUT_MS
+	int "Idle timeout in milliseconds"
+	default 60000
+	depends on APP_POWER_MANAGEMENT
+	help
+	  Time of inactivity before entering low-power mode.
+
+endmenu # Power Management
+
+menu "Haptics Configuration"
+
+config APP_HAPTICS
+	bool "Enable haptics driver"
+	default y
+	select I2C
+	help
+	  Enable haptic feedback driver support using DRV2605L.
+
+config APP_HAPTIC_STACK_SIZE
+	int "Haptics thread stack size"
+	default 2048
+	depends on APP_HAPTICS
+	help
+	  Stack size for the haptics control thread.
+
+config APP_HAPTIC_PRIORITY
+	int "Haptics thread priority"
+	default 7
+	depends on APP_HAPTICS
+	help
+	  Priority for the haptics thread. Lower number = higher priority.
+
+endmenu # Haptics Configuration
+
+endmenu # Application Configuration
+
