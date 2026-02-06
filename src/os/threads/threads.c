@@ -8,7 +8,6 @@
 
 #include <os/threads.h>
 #include <ble/ble_service.h>
-#include <uart/uart_service.h>
 #include <gpio/gpio.h>
 #include <haptics/haptic_service.h>
 #include <zephyr/logging/log.h>
@@ -18,48 +17,6 @@
 LOG_MODULE_REGISTER(threads, LOG_LEVEL_DBG);
 
 #define RUN_LED_BLINK_INTERVAL K_MSEC(1000)
-
-/**
- * @brief BLE write thread - handles sending UART data over BLE
- */
-void ble_write_thread_entry(void)
-{
-	/* Don't go any further until BLE is initialized */
-	ble_wait_init();
-
-	struct uart_data_t nus_data = {
-		.len = 0,
-	};
-
-	LOG_INF("BLE write thread started");
-
-	for (;;) {
-		/* Wait indefinitely for data to be sent over bluetooth */
-		struct uart_data_t *buf = uart_get_rx_data();
-
-		int plen = MIN(sizeof(nus_data.data) - nus_data.len, buf->len);
-		int loc = 0;
-
-		while (plen > 0) {
-			memcpy(&nus_data.data[nus_data.len], &buf->data[loc], plen);
-			nus_data.len += plen;
-			loc += plen;
-
-			if (nus_data.len >= sizeof(nus_data.data) ||
-			   (nus_data.data[nus_data.len - 1] == '\n') ||
-			   (nus_data.data[nus_data.len - 1] == '\r')) {
-				if (ble_send_data(nus_data.data, nus_data.len)) {
-					LOG_WRN("Failed to send data over BLE connection");
-				}
-				nus_data.len = 0;
-			}
-
-			plen = MIN(sizeof(nus_data.data), buf->len - loc);
-		}
-
-		k_free(buf);
-	}
-}
 
 /**
  * @brief LED blink thread - handles status LED blinking
@@ -151,10 +108,6 @@ void threads_init(void)
 	LOG_INF("Threads initialized");
 	/* Threads are statically defined and started automatically */
 }
-
-/* Define BLE write thread */
-K_THREAD_DEFINE(ble_write_thread_id, CONFIG_APP_BLE_WRITE_STACK_SIZE, ble_write_thread_entry, 
-		NULL, NULL, NULL, CONFIG_APP_BLE_WRITE_PRIORITY, 0, 0);
 
 /* Define LED blink thread */
 K_THREAD_DEFINE(led_blink_thread_id, CONFIG_APP_LED_BLINK_STACK_SIZE, led_blink_thread_entry, 

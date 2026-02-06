@@ -52,6 +52,12 @@ typedef enum {
 	HAPTIC_PATTERN_RAMP_DOWN,         /* Gradual decrease */
 	HAPTIC_PATTERN_PULSE,             /* Pulsing pattern */
 	HAPTIC_PATTERN_BUZZ,              /* Continuous buzz */
+	/* Navigation patterns */
+	HAPTIC_PATTERN_NAV_START,         /* Start navigation */
+	HAPTIC_PATTERN_TURN_RIGHT,        /* Turn right */
+	HAPTIC_PATTERN_TURN_LEFT,         /* Turn left */
+	HAPTIC_PATTERN_NAV_STOP,          /* Stop/obstacle warning */
+	HAPTIC_PATTERN_NAV_END,           /* End navigation */
 } haptic_predefined_pattern_t;
 
 /**

@@ -21,7 +21,6 @@ target_sources(app PRIVATE
   src/main.c
   
   # Services
-  src/services/uart/uart_service.c
   src/services/ble/ble_service.c
   src/services/haptics/haptic_service.c
   

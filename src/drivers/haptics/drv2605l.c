@@ -15,6 +15,11 @@ LOG_MODULE_REGISTER(drv2605l, LOG_LEVEL_DBG);
 /* I2C device configuration */
 #define DRV2605L_I2C_NODE DT_NODELABEL(drv2605l)
 
+/* Try I2C1 if DRV2605L not found on I2C0 */
+#if !DT_NODE_HAS_STATUS(DRV2605L_I2C_NODE, okay)
+#warning "DRV2605L node not found - check device tree overlay"
+#endif
+
 #if DT_NODE_HAS_STATUS(DRV2605L_I2C_NODE, okay)
 static const struct i2c_dt_spec drv2605l_i2c = I2C_DT_SPEC_GET(DRV2605L_I2C_NODE);
 #else
@@ -71,12 +76,29 @@ int drv2605l_init(drv2605l_motor_type_t type)
 		return -ENODEV;
 	}
 
+	LOG_INF("I2C bus ready");
+	
+	/* Quick test: Try reading from onboard IMU at 0x6A */
+	struct i2c_dt_spec test_imu = drv2605l_i2c;
+	test_imu.addr = 0x6A;
+	uint8_t who_am_i;
+	int test_ret = i2c_reg_read_byte_dt(&test_imu, 0x0F, &who_am_i);
+	if (test_ret == 0) {
+		LOG_INF("IMU WHO_AM_I: 0x%02X (I2C working!)", who_am_i);
+	} else {
+		LOG_ERR("Cannot read IMU at 0x6A (err %d) - I2C bus issue!", test_ret);
+	}
+
+	LOG_INF("Attempting DRV2605L at 0x%02X...", drv2605l_i2c.addr);
+
 	motor_type = type;
 
 	/* Read status register to verify communication */
 	ret = drv2605l_read_reg(DRV2605L_REG_STATUS, &status);
 	if (ret < 0) {
-		LOG_ERR("Failed to communicate with DRV2605L");
+		LOG_ERR("Failed to communicate with DRV2605L at address 0x%02X", drv2605l_i2c.addr);
+		LOG_ERR("Check wiring: SDA=P0.04, SCL=P0.27, VCC=3.3V, GND");
+		LOG_ERR("Check if pull-up resistors are present on I2C lines");
 		return ret;
 	}
 
@@ -161,25 +183,30 @@ int drv2605l_play_effect(uint8_t effect)
 		return -EINVAL;
 	}
 
+	LOG_INF("Attempting to play effect %d", effect);
+
 	/* Set the waveform in sequence register 1 */
 	ret = drv2605l_write_reg(DRV2605L_REG_WAVESEQ1, effect);
 	if (ret < 0) {
+		LOG_ERR("Failed to write WAVESEQ1 register (err %d)", ret);
 		return ret;
 	}
 
 	/* Terminate sequence */
 	ret = drv2605l_write_reg(DRV2605L_REG_WAVESEQ2, 0x00);
 	if (ret < 0) {
+		LOG_ERR("Failed to write WAVESEQ2 register (err %d)", ret);
 		return ret;
 	}
 
 	/* Trigger playback */
 	ret = drv2605l_write_reg(DRV2605L_REG_GO, 0x01);
 	if (ret < 0) {
+		LOG_ERR("Failed to write GO register (err %d)", ret);
 		return ret;
 	}
 
-	LOG_DBG("Playing effect %d", effect);
+	LOG_INF("Effect %d triggered successfully", effect);
 	return 0;
 }
 
