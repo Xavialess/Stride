@@ -34,17 +34,66 @@ void led_blink_thread_entry(void)
 }
 
 /**
+ * Wait for the DRV2605L GO bit to clear, polling at 10 ms intervals.
+ * Returns after playback finishes or after ~2 s timeout.
+ */
+static void wait_for_playback_done(void)
+{
+	for (int i = 0; i < 200; i++) {
+		if (!drv2605l_is_playing()) {
+			return;
+		}
+		k_sleep(K_MSEC(10));
+	}
+}
+
+static void play_multi_step_pattern(haptic_predefined_pattern_t pattern_id)
+{
+	const struct haptic_pattern_def *def = haptic_get_pattern_def(pattern_id);
+
+	if (!def || def->step_count == 0) {
+		LOG_WRN("Invalid multi-step pattern %d", pattern_id);
+		return;
+	}
+
+	for (uint8_t i = 0; i < def->step_count; i++) {
+		const struct haptic_pattern_step *step = &def->steps[i];
+
+		motor_mux_select(step->target);
+
+		int ret;
+		if (step->count == 1) {
+			ret = drv2605l_play_effect(step->effects[0]);
+		} else {
+			ret = drv2605l_play_sequence(step->effects, step->count);
+		}
+
+		if (ret < 0) {
+			LOG_ERR("Multi-step pattern step %d failed (err %d)",
+				i, ret);
+			break;
+		}
+
+		wait_for_playback_done();
+
+		if (step->post_delay_ms > 0) {
+			k_sleep(K_MSEC(step->post_delay_ms));
+		}
+	}
+
+	motor_mux_select(MOTOR_NONE);
+}
+
+/**
  * @brief Haptic thread - handles haptic feedback pattern playback
  */
 void haptic_thread_entry(void)
 {
-	/* Wait for haptic service to be initialized */
 	haptic_wait_init();
 
-	LOG_INF("Haptic thread started");
+	LOG_INF("Haptic thread started (dual-motor mux)");
 
 	for (;;) {
-		/* Wait for haptic data from the queue */
 		struct haptic_data_t *haptic_data = haptic_get_queued_data();
 
 		if (!haptic_data) {
@@ -52,50 +101,60 @@ void haptic_thread_entry(void)
 			continue;
 		}
 
-		LOG_DBG("Processing haptic pattern (type: %d, len: %d)", 
-		        haptic_data->type, haptic_data->len);
+		LOG_DBG("Processing haptic (type: %d, target: 0x%02X, len: %d)",
+			haptic_data->type, haptic_data->target,
+			haptic_data->len);
 
-		/* Process based on pattern type */
 		switch (haptic_data->type) {
 		case HAPTIC_PATTERN_SINGLE_EFFECT:
 			if (haptic_data->len >= 1) {
-				int ret = drv2605l_play_effect(haptic_data->data[0]);
+				motor_mux_select(haptic_data->target);
+				int ret = drv2605l_play_effect(
+					haptic_data->data[0]);
 				if (ret < 0) {
-					LOG_ERR("Failed to play effect %d (err %d)", 
-					        haptic_data->data[0], ret);
+					LOG_ERR("Failed to play effect %d (err %d)",
+						haptic_data->data[0], ret);
 				}
+				wait_for_playback_done();
+				motor_mux_select(MOTOR_NONE);
 			}
 			break;
 
 		case HAPTIC_PATTERN_SEQUENCE:
 			if (haptic_data->len > 0) {
-				int ret = drv2605l_play_sequence(haptic_data->data, 
-				                                  haptic_data->len);
+				motor_mux_select(haptic_data->target);
+				int ret = drv2605l_play_sequence(
+					haptic_data->data, haptic_data->len);
 				if (ret < 0) {
-					LOG_ERR("Failed to play sequence (err %d)", ret);
+					LOG_ERR("Failed to play sequence (err %d)",
+						ret);
 				}
+				wait_for_playback_done();
+				motor_mux_select(MOTOR_NONE);
+			}
+			break;
+
+		case HAPTIC_PATTERN_MULTI_STEP:
+			if (haptic_data->len >= 1) {
+				play_multi_step_pattern(
+					(haptic_predefined_pattern_t)haptic_data->data[0]);
 			}
 			break;
 
 		case HAPTIC_PATTERN_STOP:
 			drv2605l_stop();
-			LOG_DBG("Stopped haptic playback");
-			break;
-
-		case HAPTIC_PATTERN_CUSTOM:
-			/* Custom patterns can be implemented here */
-			LOG_WRN("Custom patterns not yet implemented");
+			motor_mux_select(MOTOR_NONE);
+			LOG_DBG("Stopped haptic playback, motors disconnected");
 			break;
 
 		default:
-			LOG_WRN("Unknown haptic pattern type: %d", haptic_data->type);
+			LOG_WRN("Unknown haptic pattern type: %d",
+				haptic_data->type);
 			break;
 		}
 
-		/* Free the haptic data buffer */
 		k_free(haptic_data);
 
-		/* Small delay to prevent overwhelming the driver */
 		k_sleep(K_MSEC(10));
 	}
 }
@@ -106,7 +165,6 @@ void haptic_thread_entry(void)
 void threads_init(void)
 {
 	LOG_INF("Threads initialized");
-	/* Threads are statically defined and started automatically */
 }
 
 /* Define LED blink thread */
@@ -116,4 +174,3 @@ K_THREAD_DEFINE(led_blink_thread_id, CONFIG_APP_LED_BLINK_STACK_SIZE, led_blink_
 /* Define haptic thread */
 K_THREAD_DEFINE(haptic_thread_id, CONFIG_APP_HAPTIC_STACK_SIZE, haptic_thread_entry, 
 		NULL, NULL, NULL, CONFIG_APP_HAPTIC_PRIORITY, 0, 0);
-

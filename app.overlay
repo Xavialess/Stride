@@ -12,6 +12,25 @@
  * Using I2C1 bus which Arduino typically uses on expansion boards.
  */
 
+/*
+ * ADG884 motor mux GPIO control
+ *
+ * Two SPDT channels independently route the DRV2605L output to left/right
+ * motors. D1 (P0.03) controls channel A (left), D2 (P0.28) controls channel B
+ * (right). HIGH = motor connected, LOW = motor disconnected.
+ */
+/ {
+	motor_mux: motor_mux {
+		compatible = "gpio-leds";
+		mux_left: mux_left {
+			gpios = <&xiao_d 1 GPIO_ACTIVE_HIGH>;
+		};
+		mux_right: mux_right {
+			gpios = <&xiao_d 2 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
 /* Use I2C1 instead of I2C0 (different pins) */
 &i2c1 {
 	compatible = "nordic,nrf-twim";

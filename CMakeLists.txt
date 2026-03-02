@@ -27,6 +27,7 @@ target_sources(app PRIVATE
   # Drivers
   src/drivers/gpio.c
   src/drivers/haptics/drv2605l.c
+  src/drivers/haptics/motor_mux.c
   
   # OS components
   src/os/threads/threads.c
