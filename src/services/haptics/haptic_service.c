@@ -79,6 +79,34 @@ static const uint8_t pattern_buzz[] = {
 	DRV2605L_EFFECT_STRONG_BUZZ_100
 };
 
+/* Navigation-specific patterns */
+static const uint8_t pattern_nav_start[] = {
+	DRV2605L_EFFECT_TRANSITION_RAMP_UP_SHORT_SMOOTH_1,
+	DRV2605L_EFFECT_STRONG_CLICK_100,
+	DRV2605L_EFFECT_SOFT_BUMP_100
+};
+
+static const uint8_t pattern_turn_right[] = {
+	DRV2605L_EFFECT_SHARP_CLICK_60,
+	DRV2605L_EFFECT_SHARP_CLICK_60
+};
+
+static const uint8_t pattern_turn_left[] = {
+	DRV2605L_EFFECT_SHARP_CLICK_60,
+	DRV2605L_EFFECT_SHARP_CLICK_60,
+	DRV2605L_EFFECT_SHARP_CLICK_60
+};
+
+static const uint8_t pattern_nav_stop[] = {
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_CLICK_100
+};
+
+static const uint8_t pattern_nav_end[] = {
+	DRV2605L_EFFECT_SOFT_BUMP_100,
+	DRV2605L_EFFECT_TRANSITION_RAMP_DOWN_LONG_SMOOTH_1
+};
+
 /* Pattern lookup table */
 struct pattern_def {
 	const uint8_t *effects;
@@ -98,6 +126,12 @@ static const struct pattern_def predefined_patterns[] = {
 	[HAPTIC_PATTERN_RAMP_DOWN]    = {pattern_ramp_down, ARRAY_SIZE(pattern_ramp_down)},
 	[HAPTIC_PATTERN_PULSE]        = {pattern_pulse, ARRAY_SIZE(pattern_pulse)},
 	[HAPTIC_PATTERN_BUZZ]         = {pattern_buzz, ARRAY_SIZE(pattern_buzz)},
+	/* Navigation patterns */
+	[HAPTIC_PATTERN_NAV_START]    = {pattern_nav_start, ARRAY_SIZE(pattern_nav_start)},
+	[HAPTIC_PATTERN_TURN_RIGHT]   = {pattern_turn_right, ARRAY_SIZE(pattern_turn_right)},
+	[HAPTIC_PATTERN_TURN_LEFT]    = {pattern_turn_left, ARRAY_SIZE(pattern_turn_left)},
+	[HAPTIC_PATTERN_NAV_STOP]     = {pattern_nav_stop, ARRAY_SIZE(pattern_nav_stop)},
+	[HAPTIC_PATTERN_NAV_END]      = {pattern_nav_end, ARRAY_SIZE(pattern_nav_end)},
 };
 
 /**
