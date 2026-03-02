@@ -15,9 +15,14 @@
 /*
  * ADG884 motor mux GPIO control
  *
- * Two SPDT channels independently route the DRV2605L output to left/right
- * motors. D1 (P0.03) controls channel A (left), D2 (P0.28) controls channel B
- * (right). HIGH = motor connected, LOW = motor disconnected.
+ * The DRV2605L differential pair (OUT+, OUT-) feeds the ADG884's two SPDT
+ * channels (D1 -> ch1, D2 -> ch2).  Both IN pins are driven to the same
+ * level so the full pair routes to one motor at a time:
+ *
+ *   IN1=IN2=LOW  -> A-side -> Motor 1 (left)   via S1A/S2A
+ *   IN1=IN2=HIGH -> B-side -> Motor 2 (right)  via S1B/S2B
+ *
+ * D1 (P0.03) = IN1, D2 (P0.28) = IN2.
  */
 / {
 	motor_mux: motor_mux {

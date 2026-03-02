@@ -23,7 +23,7 @@ static K_SEM_DEFINE(haptic_init_ok, 0, 1);
 #define HAPTIC_CMD_STOP             0x04
 
 /* ------------------------------------------------------------------ */
-/* Effect arrays used by pattern steps                                 */
+/* Effect arrays                                                       */
 /* ------------------------------------------------------------------ */
 
 static const uint8_t fx_sharp_click_100[] = {
@@ -102,62 +102,79 @@ static const uint8_t fx_alert_long[] = {
 
 /* ------------------------------------------------------------------ */
 /* Pattern step tables                                                 */
+/*                                                                     */
+/* Hardware constraint: only one motor can be driven at a time.        */
+/* "Both motors" patterns play on left first, then right (TDM).       */
 /* ------------------------------------------------------------------ */
 
-/* Generic patterns: target = MOTOR_BOTH (backward compatible) */
+/* --- Generic patterns: play on left then right --- */
 
 static const struct haptic_pattern_step steps_notification[] = {
-	{ MOTOR_BOTH, fx_sharp_click_100, 1, 0 },
+	{ MOTOR_LEFT,  fx_sharp_click_100, 1, 0 },
+	{ MOTOR_RIGHT, fx_sharp_click_100, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_alert[] = {
-	{ MOTOR_BOTH, fx_strong_buzz_x2, 2, 0 },
+	{ MOTOR_LEFT,  fx_strong_buzz_x2, 2, 0 },
+	{ MOTOR_RIGHT, fx_strong_buzz_x2, 2, 0 },
 };
 
 static const struct haptic_pattern_step steps_success[] = {
-	{ MOTOR_BOTH, fx_ramp_up_click, 2, 0 },
+	{ MOTOR_LEFT,  fx_ramp_up_click, 2, 0 },
+	{ MOTOR_RIGHT, fx_ramp_up_click, 2, 0 },
 };
 
 static const struct haptic_pattern_step steps_error[] = {
-	{ MOTOR_BOTH, fx_strong_click_x3, 3, 0 },
+	{ MOTOR_LEFT,  fx_strong_click_x3, 3, 0 },
+	{ MOTOR_RIGHT, fx_strong_click_x3, 3, 0 },
 };
 
 static const struct haptic_pattern_step steps_button_press[] = {
-	{ MOTOR_BOTH, fx_sharp_click_60, 1, 0 },
+	{ MOTOR_LEFT,  fx_sharp_click_60, 1, 0 },
+	{ MOTOR_RIGHT, fx_sharp_click_60, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_long_press[] = {
-	{ MOTOR_BOTH, fx_soft_bump_click, 2, 0 },
+	{ MOTOR_LEFT,  fx_soft_bump_click, 2, 0 },
+	{ MOTOR_RIGHT, fx_soft_bump_click, 2, 0 },
 };
 
 static const struct haptic_pattern_step steps_double_tap[] = {
-	{ MOTOR_BOTH, fx_double_click, 1, 0 },
+	{ MOTOR_LEFT,  fx_double_click, 1, 0 },
+	{ MOTOR_RIGHT, fx_double_click, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_heartbeat[] = {
-	{ MOTOR_BOTH, fx_heartbeat, 2, 0 },
+	{ MOTOR_LEFT,  fx_heartbeat, 2, 0 },
+	{ MOTOR_RIGHT, fx_heartbeat, 2, 0 },
 };
 
 static const struct haptic_pattern_step steps_ramp_up[] = {
-	{ MOTOR_BOTH, fx_ramp_up_long, 1, 0 },
+	{ MOTOR_LEFT,  fx_ramp_up_long, 1, 0 },
+	{ MOTOR_RIGHT, fx_ramp_up_long, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_ramp_down[] = {
-	{ MOTOR_BOTH, fx_ramp_down_long, 1, 0 },
+	{ MOTOR_LEFT,  fx_ramp_down_long, 1, 0 },
+	{ MOTOR_RIGHT, fx_ramp_down_long, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_pulse[] = {
-	{ MOTOR_BOTH, fx_pulsing, 1, 0 },
+	{ MOTOR_LEFT,  fx_pulsing, 1, 0 },
+	{ MOTOR_RIGHT, fx_pulsing, 1, 0 },
 };
 
 static const struct haptic_pattern_step steps_buzz[] = {
-	{ MOTOR_BOTH, fx_strong_buzz, 1, 0 },
+	{ MOTOR_LEFT,  fx_strong_buzz, 1, 0 },
+	{ MOTOR_RIGHT, fx_strong_buzz, 1, 0 },
 };
 
-/* Navigation patterns: exploit left/right motor targeting */
+/* --- Navigation patterns --- */
 
+/* Start: left ramp-up then right ramp-up */
 static const struct haptic_pattern_step steps_nav_start[] = {
-	{ MOTOR_BOTH, fx_nav_start_seq, 3, 0 },
+	{ MOTOR_LEFT,  fx_nav_start_seq, 3, 0 },
+	{ MOTOR_RIGHT, fx_nav_start_seq, 3, 0 },
 };
 
 /* Turn right: only the RIGHT motor fires */
@@ -170,7 +187,7 @@ static const struct haptic_pattern_step steps_turn_left[] = {
 	{ MOTOR_LEFT, fx_sharp_click_60_x2, 2, 0 },
 };
 
-/* Stop / obstacle: alternating left-right buzz sequence */
+/* Stop / obstacle: long alternating left-right buzz */
 static const struct haptic_pattern_step steps_nav_stop[] = {
 	{ MOTOR_LEFT,  fx_alert_long, 1, 200 },
 	{ MOTOR_RIGHT, fx_alert_long, 1, 200 },
@@ -180,8 +197,10 @@ static const struct haptic_pattern_step steps_nav_stop[] = {
 	{ MOTOR_RIGHT, fx_strong_buzz, 1, 0 },
 };
 
+/* End: left ramp-down then right ramp-down */
 static const struct haptic_pattern_step steps_nav_end[] = {
-	{ MOTOR_BOTH, fx_soft_bump_ramp_down, 2, 0 },
+	{ MOTOR_LEFT,  fx_soft_bump_ramp_down, 2, 0 },
+	{ MOTOR_RIGHT, fx_soft_bump_ramp_down, 2, 0 },
 };
 
 /* ------------------------------------------------------------------ */
@@ -266,7 +285,7 @@ int haptic_service_init(void)
 
 	k_sem_give(&haptic_init_ok);
 
-	LOG_INF("Haptic service initialized (dual-motor mux enabled)");
+	LOG_INF("Haptic service initialized (differential-pair mux)");
 	return 0;
 }
 
@@ -282,7 +301,7 @@ int haptic_play_effect_on(uint8_t effect, motor_target_t target)
 
 int haptic_play_effect(uint8_t effect)
 {
-	return haptic_play_effect_on(effect, MOTOR_BOTH);
+	return haptic_play_effect_on(effect, MOTOR_LEFT);
 }
 
 int haptic_play_pattern(haptic_predefined_pattern_t pattern)
@@ -292,13 +311,9 @@ int haptic_play_pattern(haptic_predefined_pattern_t pattern)
 		return -EINVAL;
 	}
 
-	/*
-	 * Encode the pattern index in data[0]. The haptic thread will look up
-	 * the full multi-step definition from the pattern table.
-	 */
 	uint8_t idx = (uint8_t)pattern;
 
-	return queue_haptic_data(HAPTIC_PATTERN_MULTI_STEP, MOTOR_BOTH,
+	return queue_haptic_data(HAPTIC_PATTERN_MULTI_STEP, MOTOR_LEFT,
 				 &idx, 1);
 }
 
@@ -329,7 +344,7 @@ int haptic_play_sequence_on(const uint8_t *effects, uint8_t count,
 
 int haptic_play_sequence(const uint8_t *effects, uint8_t count)
 {
-	return haptic_play_sequence_on(effects, count, MOTOR_BOTH);
+	return haptic_play_sequence_on(effects, count, MOTOR_LEFT);
 }
 
 /**
@@ -338,15 +353,16 @@ int haptic_play_sequence(const uint8_t *effects, uint8_t count)
  *
  * HAPTIC_CMD_PLAY_EFFECT (0x01):
  *   Byte 1: Effect number (1-123)
- *   Byte 2: Motor target (optional, default MOTOR_BOTH)
+ *   Byte 2: Motor target (optional, default MOTOR_LEFT)
+ *           0x01 = left, 0x02 = right
  *
  * HAPTIC_CMD_PLAY_SEQUENCE (0x02):
  *   Byte 1: Number of effects
  *   Bytes 2..N: Effect numbers
- *   Byte N+1: Motor target (optional, default MOTOR_BOTH)
+ *   Byte N+1: Motor target (optional, default MOTOR_LEFT)
  *
  * HAPTIC_CMD_PLAY_PATTERN (0x03):
- *   Byte 1: Pattern ID
+ *   Byte 1: Pattern ID (motor targeting is baked into the pattern)
  *
  * HAPTIC_CMD_STOP (0x04):
  *   No additional data
@@ -369,7 +385,7 @@ int haptic_process_ble_data(const uint8_t *data, uint16_t len)
 			return -EINVAL;
 		}
 		motor_target_t target = (len >= 3) ?
-			(motor_target_t)data[2] : MOTOR_BOTH;
+			(motor_target_t)data[2] : MOTOR_LEFT;
 		return haptic_play_effect_on(data[1], target);
 	}
 
@@ -384,7 +400,7 @@ int haptic_process_ble_data(const uint8_t *data, uint16_t len)
 			return -EINVAL;
 		}
 		motor_target_t target = (len >= (uint16_t)(3 + count)) ?
-			(motor_target_t)data[2 + count] : MOTOR_BOTH;
+			(motor_target_t)data[2 + count] : MOTOR_LEFT;
 		return haptic_play_sequence_on(&data[2], count, target);
 	}
 

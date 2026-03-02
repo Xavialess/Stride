@@ -18,9 +18,6 @@ LOG_MODULE_REGISTER(threads, LOG_LEVEL_DBG);
 
 #define RUN_LED_BLINK_INTERVAL K_MSEC(1000)
 
-/**
- * @brief LED blink thread - handles status LED blinking
- */
 void led_blink_thread_entry(void)
 {
 	int blink_status = 0;
@@ -33,10 +30,6 @@ void led_blink_thread_entry(void)
 	}
 }
 
-/**
- * Wait for the DRV2605L GO bit to clear, polling at 10 ms intervals.
- * Returns after playback finishes or after ~2 s timeout.
- */
 static void wait_for_playback_done(void)
 {
 	for (int i = 0; i < 200; i++) {
@@ -45,6 +38,33 @@ static void wait_for_playback_done(void)
 		}
 		k_sleep(K_MSEC(10));
 	}
+}
+
+/**
+ * Play a single effect on one physical motor, wait for completion.
+ */
+static int play_effect_on_motor(uint8_t effect, motor_target_t motor)
+{
+	motor_mux_select(motor);
+	int ret = drv2605l_play_effect(effect);
+	if (ret == 0) {
+		wait_for_playback_done();
+	}
+	return ret;
+}
+
+/**
+ * Play a sequence on one physical motor, wait for completion.
+ */
+static int play_sequence_on_motor(const uint8_t *effects, uint8_t len,
+				  motor_target_t motor)
+{
+	motor_mux_select(motor);
+	int ret = drv2605l_play_sequence(effects, len);
+	if (ret == 0) {
+		wait_for_playback_done();
+	}
+	return ret;
 }
 
 static void play_multi_step_pattern(haptic_predefined_pattern_t pattern_id)
@@ -81,17 +101,14 @@ static void play_multi_step_pattern(haptic_predefined_pattern_t pattern_id)
 		}
 	}
 
-	motor_mux_select(MOTOR_NONE);
+	motor_mux_select(MOTOR_LEFT);
 }
 
-/**
- * @brief Haptic thread - handles haptic feedback pattern playback
- */
 void haptic_thread_entry(void)
 {
 	haptic_wait_init();
 
-	LOG_INF("Haptic thread started (dual-motor mux)");
+	LOG_INF("Haptic thread started (differential-pair mux)");
 
 	for (;;) {
 		struct haptic_data_t *haptic_data = haptic_get_queued_data();
@@ -108,29 +125,34 @@ void haptic_thread_entry(void)
 		switch (haptic_data->type) {
 		case HAPTIC_PATTERN_SINGLE_EFFECT:
 			if (haptic_data->len >= 1) {
-				motor_mux_select(haptic_data->target);
-				int ret = drv2605l_play_effect(
-					haptic_data->data[0]);
-				if (ret < 0) {
-					LOG_ERR("Failed to play effect %d (err %d)",
-						haptic_data->data[0], ret);
+				uint8_t effect = haptic_data->data[0];
+				motor_target_t t = haptic_data->target;
+
+				if (t == MOTOR_BOTH) {
+					play_effect_on_motor(effect, MOTOR_LEFT);
+					play_effect_on_motor(effect, MOTOR_RIGHT);
+				} else {
+					play_effect_on_motor(effect, t);
 				}
-				wait_for_playback_done();
-				motor_mux_select(MOTOR_NONE);
 			}
 			break;
 
 		case HAPTIC_PATTERN_SEQUENCE:
 			if (haptic_data->len > 0) {
-				motor_mux_select(haptic_data->target);
-				int ret = drv2605l_play_sequence(
-					haptic_data->data, haptic_data->len);
-				if (ret < 0) {
-					LOG_ERR("Failed to play sequence (err %d)",
-						ret);
+				motor_target_t t = haptic_data->target;
+
+				if (t == MOTOR_BOTH) {
+					play_sequence_on_motor(
+						haptic_data->data,
+						haptic_data->len, MOTOR_LEFT);
+					play_sequence_on_motor(
+						haptic_data->data,
+						haptic_data->len, MOTOR_RIGHT);
+				} else {
+					play_sequence_on_motor(
+						haptic_data->data,
+						haptic_data->len, t);
 				}
-				wait_for_playback_done();
-				motor_mux_select(MOTOR_NONE);
 			}
 			break;
 
@@ -143,8 +165,8 @@ void haptic_thread_entry(void)
 
 		case HAPTIC_PATTERN_STOP:
 			drv2605l_stop();
-			motor_mux_select(MOTOR_NONE);
-			LOG_DBG("Stopped haptic playback, motors disconnected");
+			motor_mux_select(MOTOR_LEFT);
+			LOG_DBG("Stopped haptic playback");
 			break;
 
 		default:
@@ -159,18 +181,13 @@ void haptic_thread_entry(void)
 	}
 }
 
-/**
- * @brief Initialize thread management system
- */
 void threads_init(void)
 {
 	LOG_INF("Threads initialized");
 }
 
-/* Define LED blink thread */
 K_THREAD_DEFINE(led_blink_thread_id, CONFIG_APP_LED_BLINK_STACK_SIZE, led_blink_thread_entry, 
 		NULL, NULL, NULL, CONFIG_APP_LED_BLINK_PRIORITY, 0, 0);
 
-/* Define haptic thread */
 K_THREAD_DEFINE(haptic_thread_id, CONFIG_APP_HAPTIC_STACK_SIZE, haptic_thread_entry, 
 		NULL, NULL, NULL, CONFIG_APP_HAPTIC_PRIORITY, 0, 0);

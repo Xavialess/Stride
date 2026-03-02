@@ -10,11 +10,16 @@
 
 LOG_MODULE_REGISTER(motor_mux, LOG_LEVEL_DBG);
 
-#define MUX_LEFT_NODE  DT_NODELABEL(mux_left)
-#define MUX_RIGHT_NODE DT_NODELABEL(mux_right)
+/*
+ * Both devicetree nodes drive the same logical level.
+ * mux_left  = IN1 (channel 1, switches OUT+)
+ * mux_right = IN2 (channel 2, switches OUT-)
+ */
+#define MUX_IN1_NODE DT_NODELABEL(mux_left)
+#define MUX_IN2_NODE DT_NODELABEL(mux_right)
 
-static const struct gpio_dt_spec mux_left  = GPIO_DT_SPEC_GET(MUX_LEFT_NODE, gpios);
-static const struct gpio_dt_spec mux_right = GPIO_DT_SPEC_GET(MUX_RIGHT_NODE, gpios);
+static const struct gpio_dt_spec mux_in1 = GPIO_DT_SPEC_GET(MUX_IN1_NODE, gpios);
+static const struct gpio_dt_spec mux_in2 = GPIO_DT_SPEC_GET(MUX_IN2_NODE, gpios);
 
 static bool mux_initialized;
 
@@ -22,57 +27,70 @@ int motor_mux_init(void)
 {
 	int ret;
 
-	if (!gpio_is_ready_dt(&mux_left)) {
-		LOG_ERR("Left mux GPIO device not ready");
+	if (!gpio_is_ready_dt(&mux_in1)) {
+		LOG_ERR("Mux IN1 GPIO device not ready");
 		return -ENODEV;
 	}
 
-	if (!gpio_is_ready_dt(&mux_right)) {
-		LOG_ERR("Right mux GPIO device not ready");
+	if (!gpio_is_ready_dt(&mux_in2)) {
+		LOG_ERR("Mux IN2 GPIO device not ready");
 		return -ENODEV;
 	}
 
-	ret = gpio_pin_configure_dt(&mux_left, GPIO_OUTPUT_INACTIVE);
+	ret = gpio_pin_configure_dt(&mux_in1, GPIO_OUTPUT_INACTIVE);
 	if (ret < 0) {
-		LOG_ERR("Failed to configure left mux GPIO (err %d)", ret);
+		LOG_ERR("Failed to configure IN1 GPIO (err %d)", ret);
 		return ret;
 	}
 
-	ret = gpio_pin_configure_dt(&mux_right, GPIO_OUTPUT_INACTIVE);
+	ret = gpio_pin_configure_dt(&mux_in2, GPIO_OUTPUT_INACTIVE);
 	if (ret < 0) {
-		LOG_ERR("Failed to configure right mux GPIO (err %d)", ret);
+		LOG_ERR("Failed to configure IN2 GPIO (err %d)", ret);
 		return ret;
 	}
 
 	mux_initialized = true;
-	LOG_INF("Motor mux initialized (left=D1/P0.03, right=D2/P0.28)");
+	LOG_INF("Motor mux initialized (IN=LOW -> motor 1/left, IN=HIGH -> motor 2/right)");
 	return 0;
 }
 
 int motor_mux_select(motor_target_t target)
 {
 	int ret;
+	int level;
 
 	if (!mux_initialized) {
 		LOG_ERR("Motor mux not initialized");
 		return -ENODEV;
 	}
 
-	ret = gpio_pin_set_dt(&mux_left, (target & MOTOR_LEFT) ? 1 : 0);
+	switch (target) {
+	case MOTOR_LEFT:
+	case MOTOR_NONE:
+		level = 0;
+		break;
+	case MOTOR_RIGHT:
+		level = 1;
+		break;
+	default:
+		LOG_ERR("Invalid mux target 0x%02X (use MOTOR_LEFT or MOTOR_RIGHT)", target);
+		return -EINVAL;
+	}
+
+	ret = gpio_pin_set_dt(&mux_in1, level);
 	if (ret < 0) {
-		LOG_ERR("Failed to set left mux GPIO (err %d)", ret);
+		LOG_ERR("Failed to set IN1 (err %d)", ret);
 		return ret;
 	}
 
-	ret = gpio_pin_set_dt(&mux_right, (target & MOTOR_RIGHT) ? 1 : 0);
+	ret = gpio_pin_set_dt(&mux_in2, level);
 	if (ret < 0) {
-		LOG_ERR("Failed to set right mux GPIO (err %d)", ret);
+		LOG_ERR("Failed to set IN2 (err %d)", ret);
 		return ret;
 	}
 
-	LOG_DBG("Motor mux: left=%s right=%s",
-		(target & MOTOR_LEFT)  ? "ON" : "OFF",
-		(target & MOTOR_RIGHT) ? "ON" : "OFF");
+	LOG_DBG("Motor mux -> %s (IN1=IN2=%d)",
+		(level == 0) ? "LEFT/motor1" : "RIGHT/motor2", level);
 
 	return 0;
 }

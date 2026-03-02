@@ -11,10 +11,23 @@
 
 /**
  * @file motor_mux.h
- * @brief ADG884 dual-SPDT motor mux driver
+ * @brief ADG884 differential-pair motor mux driver
  *
- * Controls two GPIO lines (D1, D2) that gate the single DRV2605L output
- * to independent left and right ERM motors via an ADG884 analog switch.
+ * The DRV2605L drives a differential pair (OUT+, OUT-).  The ADG884 has two
+ * SPDT channels that switch this pair as a unit:
+ *
+ *   Channel 1: D1 = OUT+   ->  S1A (motor 1+) or S1B (motor 2+)
+ *   Channel 2: D2 = OUT-   ->  S2A (motor 1-) or S2B (motor 2-)
+ *
+ * Both IN1 and IN2 are tied to the same GPIO logic level so the full
+ * differential signal always reaches the same motor:
+ *
+ *   IN = LOW  -> A-side -> Motor 1 (left)
+ *   IN = HIGH -> B-side -> Motor 2 (right)
+ *
+ * Only one motor can be driven at a time.  MOTOR_BOTH is provided as a
+ * logical target for patterns; the playback thread implements it via
+ * time-division (play on left, then replay on right).
  */
 
 typedef enum {
@@ -27,16 +40,23 @@ typedef enum {
 /**
  * @brief Initialize motor mux GPIO pins
  *
- * Configures D1 and D2 as outputs, both LOW (motors disconnected).
+ * Configures IN1 and IN2 as outputs, both LOW (motor 1 / left selected).
  *
  * @return 0 on success, negative errno on failure
  */
 int motor_mux_init(void);
 
 /**
- * @brief Select which motor(s) receive the DRV2605L output
+ * @brief Route the DRV2605L differential output to the selected motor
  *
- * @param target MOTOR_LEFT, MOTOR_RIGHT, MOTOR_BOTH, or MOTOR_NONE
+ * Both IN pins are always driven to the same level.
+ * MOTOR_LEFT  -> LOW  (A-side, motor 1)
+ * MOTOR_RIGHT -> HIGH (B-side, motor 2)
+ * MOTOR_NONE  -> LOW  (defaults to motor 1, but caller should not play)
+ *
+ * MOTOR_BOTH is not valid here; the caller must time-multiplex.
+ *
+ * @param target MOTOR_LEFT or MOTOR_RIGHT
  * @return 0 on success, negative errno on failure
  */
 int motor_mux_select(motor_target_t target);
