@@ -22,6 +22,7 @@ target_sources(app PRIVATE
   
   # Services
   src/services/ble/ble_service.c
+  src/services/ble/stride_service.c
   src/services/haptics/haptic_service.c
   
   # Drivers

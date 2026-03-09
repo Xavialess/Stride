@@ -14,21 +14,14 @@
 #include <zephyr/bluetooth/conn.h>
 
 /**
- * @brief Callback function type for BLE data reception
- * 
- * @param conn Connection handle
- * @param data Received data
- * @param len Length of received data
- */
-typedef void (*ble_data_received_cb_t)(struct bt_conn *conn, const uint8_t *data, uint16_t len);
-
-/**
  * @brief Initialize BLE subsystem
  * 
- * @param rx_callback Callback for received data
+ * Enables Bluetooth, loads settings, and prepares advertising.
+ * GATT services are registered at compile time via BT_GATT_SERVICE_DEFINE.
+ *
  * @return 0 on success, negative errno on failure
  */
-int ble_service_init(ble_data_received_cb_t rx_callback);
+int ble_service_init(void);
 
 /**
  * @brief Start BLE advertising
@@ -36,15 +29,6 @@ int ble_service_init(ble_data_received_cb_t rx_callback);
  * @return 0 on success, negative errno on failure
  */
 int ble_start_advertising(void);
-
-/**
- * @brief Send data over BLE NUS
- * 
- * @param data Pointer to data buffer
- * @param len Length of data
- * @return 0 on success, negative errno on failure
- */
-int ble_send_data(const uint8_t *data, uint16_t len);
 
 /**
  * @brief Get current BLE connection
@@ -78,4 +62,3 @@ struct bt_conn *ble_get_auth_conn(void);
 void ble_confirm_passkey(bool accept);
 
 #endif /* BLE_SERVICE_H */
-

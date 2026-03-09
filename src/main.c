@@ -7,48 +7,21 @@
  */
 
 /** @file
- *  @brief Nordic UART Bridge Service (NUS) sample
+ *  @brief Stride Wristband BLE Haptic Controller
  */
 
 #include <zephyr/types.h>
 #include <zephyr/kernel.h>
-#include <zephyr/bluetooth/conn.h>
 #include <zephyr/logging/log.h>
-#include <string.h>
 
 #include <ble/ble_service.h>
+#include <ble/stride_service.h>
 #include <gpio/gpio.h>
 #include <os/threads.h>
 #include <haptics/haptic_service.h>
 
-#define LOG_MODULE_NAME peripheral_uart
+#define LOG_MODULE_NAME stride_wristband
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
-
-/**
- * @brief BLE data received callback
- * 
- * This function is called when data is received over BLE.
- * All received data is processed as haptic motor commands.
- */
-static void on_ble_data_received(struct bt_conn *conn, const uint8_t *data, uint16_t len)
-{
-	if (len == 0) {
-		return;
-	}
-
-	/* Blink LED to show data received */
-	gpio_toggle_led(LED_RUN_STATUS, 1);
-	k_sleep(K_MSEC(100));
-	gpio_toggle_led(LED_RUN_STATUS, 0);
-
-	LOG_INF("Received BLE data: len=%d, data[0]=0x%02X", len, data[0]);
-	int err = haptic_process_ble_data(data, len);
-	if (err) {
-		LOG_ERR("Failed to process motor command (err %d)", err);
-	} else {
-		LOG_INF("Motor command processed successfully");
-	}
-}
 
 /**
  * @brief Main application entry point
@@ -66,18 +39,23 @@ int main(void)
 		gpio_error_state();
 	}
 
-	/* Initialize BLE with data received callback */
-	err = ble_service_init(on_ble_data_received);
+	/* Initialize BLE subsystem */
+	err = ble_service_init();
 	if (err) {
 		LOG_ERR("BLE initialization failed (err %d)", err);
 		gpio_error_state();
+	}
+
+	/* Initialize Stride custom GATT service */
+	err = stride_service_init();
+	if (err) {
+		LOG_ERR("Stride service initialization failed (err %d)", err);
 	}
 
 	/* Initialize haptic service */
 	err = haptic_service_init();
 	if (err) {
 		LOG_ERR("Haptic service initialization failed (err %d)", err);
-		/* Non-critical: continue without haptics */
 		LOG_WRN("Continuing without haptic feedback support");
 	}
 
@@ -93,7 +71,6 @@ int main(void)
 
 	LOG_INF("Initialization complete. System running.");
 
-	/* Main thread can now idle or perform other tasks */
 	while (1) {
 		k_sleep(K_FOREVER);
 	}
