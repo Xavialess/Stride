@@ -86,9 +86,10 @@ static const uint8_t fx_nav_start_seq[] = {
 	DRV2605L_EFFECT_SOFT_BUMP_100
 };
 
-static const uint8_t fx_sharp_click_60_x2[] = {
-	DRV2605L_EFFECT_SHARP_CLICK_60,
-	DRV2605L_EFFECT_SHARP_CLICK_60
+static const uint8_t fx_turn_strong[] = {
+	DRV2605L_EFFECT_STRONG_CLICK_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_CLICK_100
 };
 
 static const uint8_t fx_soft_bump_ramp_down[] = {
@@ -179,12 +180,12 @@ static const struct haptic_pattern_step steps_nav_start[] = {
 
 /* Turn right: only the RIGHT motor fires */
 static const struct haptic_pattern_step steps_turn_right[] = {
-	{ MOTOR_RIGHT, fx_sharp_click_60_x2, 2, 0 },
+	{ MOTOR_RIGHT, fx_turn_strong, 3, 0 },
 };
 
 /* Turn left: only the LEFT motor fires */
 static const struct haptic_pattern_step steps_turn_left[] = {
-	{ MOTOR_LEFT, fx_sharp_click_60_x2, 2, 0 },
+	{ MOTOR_LEFT, fx_turn_strong, 3, 0 },
 };
 
 /* Stop / obstacle: long alternating left-right buzz */
