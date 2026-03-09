@@ -16,6 +16,7 @@
 
 #include <ble/ble_service.h>
 #include <ble/stride_service.h>
+#include <battery/battery_service.h>
 #include <gpio/gpio.h>
 #include <os/threads.h>
 #include <haptics/haptic_service.h>
@@ -50,6 +51,12 @@ int main(void)
 	err = stride_service_init();
 	if (err) {
 		LOG_ERR("Stride service initialization failed (err %d)", err);
+	}
+
+	/* Initialize battery monitoring */
+	err = battery_service_init();
+	if (err) {
+		LOG_ERR("Battery service initialization failed (err %d)", err);
 	}
 
 	/* Initialize haptic service */
