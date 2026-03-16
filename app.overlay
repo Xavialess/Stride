@@ -24,7 +24,27 @@
  *
  * D1 (P0.03) = IN1, D2 (P0.28) = IN2.
  */
+/*
+ * Battery voltage measurement
+ *
+ * The XIAO BLE Sense has a voltage divider (1M / 1M) on the BAT+ line.
+ * P0.31 (AIN7) reads the divided voltage (Vbat / 2).
+ * P0.14 is a GPIO that enables the divider — drive it LOW to enable,
+ * HIGH (or input) to disable. Keep it LOW during measurement only to
+ * avoid leaking current through the divider at rest.
+ *
+ * WARNING: Do NOT drive P0.14 HIGH while the battery is charging —
+ * it can exceed the 3.6 V input limit on P0.31 and damage the pin.
+ */
 / {
+	vbatt: vbatt {
+		compatible = "voltage-divider";
+		io-channels = <&adc 7>;   /* AIN7 = P0.31 */
+		output-ohms = <1000000>;  /* 1 MΩ lower leg */
+		full-ohms   = <2000000>;  /* 2 MΩ total (1M + 1M) */
+		power-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>; /* P0.14, active-low enable */
+	};
+
 	motor_mux: motor_mux {
 		compatible = "gpio-leds";
 		mux_left: mux_left {

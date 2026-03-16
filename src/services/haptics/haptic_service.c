@@ -204,6 +204,29 @@ static const struct haptic_pattern_step steps_nav_end[] = {
 	{ MOTOR_RIGHT, fx_soft_bump_ramp_down, 2, 0 },
 };
 
+/* Low battery (~15%): two slow pulses on both motors */
+static const uint8_t fx_low_battery[] = {
+	DRV2605L_EFFECT_PULSING_STRONG_1,
+	DRV2605L_EFFECT_PULSING_STRONG_1,
+};
+
+static const struct haptic_pattern_step steps_low_battery[] = {
+	{ MOTOR_LEFT,  fx_low_battery, 2, 200 },
+	{ MOTOR_RIGHT, fx_low_battery, 2, 0 },
+};
+
+/* Critical battery (~5%): three sharp urgent buzzes on both motors */
+static const uint8_t fx_critical_battery[] = {
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+};
+
+static const struct haptic_pattern_step steps_critical_battery[] = {
+	{ MOTOR_LEFT,  fx_critical_battery, 3, 150 },
+	{ MOTOR_RIGHT, fx_critical_battery, 3, 0 },
+};
+
 /* ------------------------------------------------------------------ */
 /* Master pattern lookup table                                         */
 /* ------------------------------------------------------------------ */
@@ -221,11 +244,13 @@ static const struct haptic_pattern_def predefined_patterns[HAPTIC_PREDEFINED_COU
 	[HAPTIC_PATTERN_RAMP_DOWN]    = { steps_ramp_down,    ARRAY_SIZE(steps_ramp_down) },
 	[HAPTIC_PATTERN_PULSE]        = { steps_pulse,        ARRAY_SIZE(steps_pulse) },
 	[HAPTIC_PATTERN_BUZZ]         = { steps_buzz,         ARRAY_SIZE(steps_buzz) },
-	[HAPTIC_PATTERN_NAV_START]    = { steps_nav_start,    ARRAY_SIZE(steps_nav_start) },
-	[HAPTIC_PATTERN_TURN_RIGHT]   = { steps_turn_right,   ARRAY_SIZE(steps_turn_right) },
-	[HAPTIC_PATTERN_TURN_LEFT]    = { steps_turn_left,    ARRAY_SIZE(steps_turn_left) },
-	[HAPTIC_PATTERN_NAV_STOP]     = { steps_nav_stop,     ARRAY_SIZE(steps_nav_stop) },
-	[HAPTIC_PATTERN_NAV_END]      = { steps_nav_end,      ARRAY_SIZE(steps_nav_end) },
+	[HAPTIC_PATTERN_NAV_START]        = { steps_nav_start,        ARRAY_SIZE(steps_nav_start) },
+	[HAPTIC_PATTERN_TURN_RIGHT]       = { steps_turn_right,       ARRAY_SIZE(steps_turn_right) },
+	[HAPTIC_PATTERN_TURN_LEFT]        = { steps_turn_left,        ARRAY_SIZE(steps_turn_left) },
+	[HAPTIC_PATTERN_NAV_STOP]         = { steps_nav_stop,         ARRAY_SIZE(steps_nav_stop) },
+	[HAPTIC_PATTERN_NAV_END]          = { steps_nav_end,          ARRAY_SIZE(steps_nav_end) },
+	[HAPTIC_PATTERN_LOW_BATTERY]      = { steps_low_battery,      ARRAY_SIZE(steps_low_battery) },
+	[HAPTIC_PATTERN_CRITICAL_BATTERY] = { steps_critical_battery, ARRAY_SIZE(steps_critical_battery) },
 };
 
 /* ------------------------------------------------------------------ */

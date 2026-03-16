@@ -17,4 +17,12 @@
  */
 int battery_service_init(void);
 
+/**
+ * @brief Trigger an immediate battery measurement and BLE notification
+ *
+ * Call this when a BLE connection is established so the app receives
+ * the current level right away without waiting for the periodic timer.
+ */
+void battery_service_notify_now(void);
+
 #endif /* BATTERY_SERVICE_H */

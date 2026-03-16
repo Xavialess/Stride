@@ -8,6 +8,7 @@
 
 #include <ble/ble_service.h>
 #include <ble/stride_service.h>
+#include <battery/battery_service.h>
 #include <gpio/gpio.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
@@ -86,6 +87,9 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 	current_conn = bt_conn_ref(conn);
 	gpio_set_led(LED_CON_STATUS, true);
+
+	/* Send battery level immediately so the app doesn't wait up to 60s */
+	battery_service_notify_now();
 }
 
 /**
