@@ -4,6 +4,9 @@
  * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
  */
 
+#include <zephyr/dt-bindings/adc/adc.h>
+#include <zephyr/dt-bindings/adc/nrf-adc.h>
+
 /* 
  * I2C configuration for DRV2605L Haptic Driver
  * 
@@ -24,25 +27,19 @@
  *
  * D1 (P0.03) = IN1, D2 (P0.28) = IN2.
  */
-/*
- * Battery voltage measurement
- *
- * The XIAO BLE Sense has a voltage divider (1M / 1M) on the BAT+ line.
- * P0.31 (AIN7) reads the divided voltage (Vbat / 2).
- * P0.14 is a GPIO that enables the divider — drive it LOW to enable,
- * HIGH (or input) to disable. Keep it LOW during measurement only to
- * avoid leaking current through the divider at rest.
- *
- * WARNING: Do NOT drive P0.14 HIGH while the battery is charging —
- * it can exceed the 3.6 V input limit on P0.31 and damage the pin.
- */
 / {
+	/*
+	 * Battery voltage measurement
+	 * BAT+ — 1MΩ — P0.31 (AIN7) — 1MΩ — GND
+	 * P0.14 enables the divider (active-low, only during ADC sample).
+	 */
 	vbatt: vbatt {
 		compatible = "voltage-divider";
-		io-channels = <&adc 7>;   /* AIN7 = P0.31 */
-		output-ohms = <1000000>;  /* 1 MΩ lower leg */
-		full-ohms   = <2000000>;  /* 2 MΩ total (1M + 1M) */
-		power-gpios = <&gpio0 14 GPIO_ACTIVE_LOW>; /* P0.14, active-low enable */
+		io-channels = <&adc 7>;
+		/* No physical divider — P0.31 connects directly to BAT+.
+		 * output-ohms == full-ohms means scale factor = 1 (no scaling). */
+		output-ohms = <1>;
+		full-ohms   = <1>;
 	};
 
 	motor_mux: motor_mux {
@@ -53,6 +50,21 @@
 		mux_right: mux_right {
 			gpios = <&xiao_d 2 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+/* SAADC channel 7 — AIN7 = P0.31, battery voltage divider input */
+&adc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	channel@7 {
+		reg = <7>;
+		zephyr,gain = "ADC_GAIN_1_6";
+		zephyr,reference = "ADC_REF_INTERNAL";
+		zephyr,acquisition-time = <ADC_ACQ_TIME_DEFAULT>;
+		zephyr,input-positive = <NRF_SAADC_AIN7>;
+		zephyr,resolution = <12>;
 	};
 };
 
