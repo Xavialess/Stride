@@ -9,6 +9,7 @@
 #include <ble/ble_service.h>
 #include <ble/stride_service.h>
 #include <battery/battery_service.h>
+#include <power/power_mgmt.h>
 #include <gpio/gpio.h>
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
@@ -19,13 +20,28 @@
 
 LOG_MODULE_REGISTER(ble_service, LOG_LEVEL_DBG);
 
+/* LED blink thread — defined in threads.c, controlled here for advertising indication */
+extern const k_tid_t led_blink_thread_id;
+
 #define DEVICE_NAME CONFIG_BT_DEVICE_NAME
 #define DEVICE_NAME_LEN (sizeof(DEVICE_NAME) - 1)
 
 /* BLE connection management */
 static struct bt_conn *current_conn;
 static struct bt_conn *auth_conn;
-static struct k_work adv_work;
+
+/* Advertising state */
+static struct k_work_delayable adv_work;
+static struct k_work_delayable adv_slow_work;
+static bool adv_fast_phase;
+
+#define ADV_FAST_DURATION_MS   30000   /* 30s of fast advertising after disconnect */
+#define ADV_RETRY_DELAY_MS     1000    /* retry delay if adv_start fails */
+
+/* Slow advertising parameters: 1–1.2s interval (GAP T_GAP(adv_slow_interval)) */
+#define BT_LE_ADV_CONN_SLOW \
+	BT_LE_ADV_PARAM(BT_LE_ADV_OPT_CONN, \
+			BT_GAP_ADV_SLOW_INT_MIN, BT_GAP_ADV_SLOW_INT_MAX, NULL)
 
 /* Semaphore for BLE initialization */
 static K_SEM_DEFINE(ble_init_ok, 0, 1);
@@ -42,6 +58,7 @@ static const struct bt_data sd[] = {
 
 /* Forward declarations */
 static void adv_work_handler(struct k_work *work);
+static void adv_slow_work_handler(struct k_work *work);
 static void connected(struct bt_conn *conn, uint8_t err);
 static void disconnected(struct bt_conn *conn, uint8_t reason);
 static void recycled_cb(void);
@@ -56,18 +73,53 @@ static void pairing_failed(struct bt_conn *conn, enum bt_security_err reason);
 #endif
 
 /**
- * @brief Advertising work handler
+ * @brief Start fast advertising, schedule switch to slow after ADV_FAST_DURATION_MS
  */
 static void adv_work_handler(struct k_work *work)
 {
-	int err = bt_le_adv_start(BT_LE_ADV_CONN_FAST_2, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+	const struct bt_le_adv_param *param = adv_fast_phase
+		? BT_LE_ADV_CONN_FAST_2
+		: BT_LE_ADV_CONN_SLOW;
 
-	if (err) {
-		LOG_ERR("Advertising failed to start (err %d)", err);
+	int err = bt_le_adv_start(param, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+
+	if (err == -EALREADY) {
+		LOG_DBG("Advertising already running");
 		return;
 	}
 
-	LOG_INF("Advertising successfully started");
+	if (err) {
+		LOG_WRN("Advertising failed (err %d), retrying in %dms", err, ADV_RETRY_DELAY_MS);
+		k_work_reschedule(&adv_work, K_MSEC(ADV_RETRY_DELAY_MS));
+		return;
+	}
+
+	if (adv_fast_phase) {
+		LOG_INF("Fast advertising started, switching to slow in %ds",
+			ADV_FAST_DURATION_MS / 1000);
+		k_work_reschedule(&adv_slow_work, K_MSEC(ADV_FAST_DURATION_MS));
+	} else {
+		LOG_INF("Slow advertising started");
+	}
+
+	/* Blink LED while advertising so the user knows the device is discoverable */
+	k_thread_resume(led_blink_thread_id);
+}
+
+/**
+ * @brief Switch from fast to slow advertising
+ */
+static void adv_slow_work_handler(struct k_work *work)
+{
+	/* Don't switch if we connected during the fast phase */
+	if (current_conn) {
+		return;
+	}
+
+	LOG_INF("Switching to slow advertising");
+	adv_fast_phase = false;
+	bt_le_adv_stop();
+	k_work_reschedule(&adv_work, K_NO_WAIT);
 }
 
 /**
@@ -87,6 +139,15 @@ static void connected(struct bt_conn *conn, uint8_t err)
 
 	current_conn = bt_conn_ref(conn);
 	gpio_set_led(LED_CON_STATUS, true);
+
+	/* Cancel pending slow-advertising switch — no longer needed */
+	k_work_cancel_delayable(&adv_slow_work);
+
+	/* Stop advertising blink — connected, LED off until navigation starts */
+	k_thread_suspend(led_blink_thread_id);
+	gpio_set_led(LED_RUN_STATUS, false);
+
+	/* Stay idle on connect — device wakes when navigation starts */
 
 	/* Send battery level immediately so the app doesn't wait up to 60s */
 	battery_service_notify_now();
@@ -112,6 +173,13 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 		current_conn = NULL;
 		gpio_set_led(LED_CON_STATUS, false);
 	}
+
+	/* Reset to fast advertising phase on every disconnect */
+	k_work_cancel_delayable(&adv_slow_work);
+	adv_fast_phase = true;
+
+	/* Enter idle when phone disconnects — BLE keeps advertising */
+	power_mgmt_request_state(POWER_STATE_IDLE);
 }
 
 /**
@@ -268,7 +336,9 @@ int ble_service_init(void)
 		settings_load();
 	}
 
-	k_work_init(&adv_work, adv_work_handler);
+	k_work_init_delayable(&adv_work, adv_work_handler);
+	k_work_init_delayable(&adv_slow_work, adv_slow_work_handler);
+	adv_fast_phase = true;
 
 	LOG_INF("BLE service initialized");
 	return 0;
@@ -279,7 +349,7 @@ int ble_service_init(void)
  */
 int ble_start_advertising(void)
 {
-	k_work_submit(&adv_work);
+	k_work_reschedule(&adv_work, K_NO_WAIT);
 	return 0;
 }
 

@@ -5,6 +5,7 @@
  */
 
 #include <haptics/haptic_service.h>
+#include <power/power_mgmt.h>
 #include "../../drivers/haptics/drv2605l.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
@@ -400,6 +401,9 @@ int haptic_process_ble_data(const uint8_t *data, uint16_t len)
 		return -EINVAL;
 	}
 
+	/* Any incoming haptic command wakes the device from idle */
+	power_mgmt_activity();
+
 	uint8_t cmd = data[0];
 
 	LOG_DBG("Processing haptic BLE command: 0x%02X", cmd);
@@ -430,12 +434,23 @@ int haptic_process_ble_data(const uint8_t *data, uint16_t len)
 		return haptic_play_sequence_on(&data[2], count, target);
 	}
 
-	case HAPTIC_CMD_PLAY_PATTERN:
+	case HAPTIC_CMD_PLAY_PATTERN: {
 		if (len < 2) {
 			LOG_ERR("PLAY_PATTERN: insufficient data");
 			return -EINVAL;
 		}
-		return haptic_play_pattern((haptic_predefined_pattern_t)data[1]);
+		haptic_predefined_pattern_t pattern = (haptic_predefined_pattern_t)data[1];
+		int ret = haptic_play_pattern(pattern);
+
+		/* Navigation ended — return to idle after the pattern is queued */
+		if (pattern == HAPTIC_PATTERN_NAV_END ||
+		    pattern == HAPTIC_PATTERN_NAV_STOP) {
+			LOG_INF("Navigation ended, entering idle");
+			power_mgmt_request_state(POWER_STATE_IDLE);
+		}
+
+		return ret;
+	}
 
 	case HAPTIC_CMD_STOP:
 		return haptic_stop();

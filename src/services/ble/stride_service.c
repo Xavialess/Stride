@@ -6,6 +6,7 @@
 
 #include <ble/stride_service.h>
 #include <haptics/haptic_service.h>
+#include <power/power_mgmt.h>
 #include <gpio/gpio.h>
 
 #include <zephyr/bluetooth/bluetooth.h>
@@ -69,6 +70,42 @@ static void battery_ccc_changed(const struct bt_gatt_attr *attr, uint16_t value)
 }
 
 /* ------------------------------------------------------------------ */
+/* Power Control characteristic (Write Without Response)              */
+/* ------------------------------------------------------------------ */
+
+static ssize_t power_write_cb(struct bt_conn *conn,
+			      const struct bt_gatt_attr *attr,
+			      const void *buf, uint16_t len,
+			      uint16_t offset, uint8_t flags)
+{
+	const uint8_t *data = buf;
+
+	if (offset != 0) {
+		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
+	}
+
+	if (len < 1) {
+		return BT_GATT_ERR(BT_ATT_ERR_INVALID_ATTRIBUTE_LEN);
+	}
+
+	switch (data[0]) {
+	case STRIDE_POWER_CMD_ACTIVE:
+		LOG_INF("Power command: ACTIVE");
+		power_mgmt_request_state(POWER_STATE_ACTIVE);
+		break;
+	case STRIDE_POWER_CMD_IDLE:
+		LOG_INF("Power command: IDLE");
+		power_mgmt_request_state(POWER_STATE_IDLE);
+		break;
+	default:
+		LOG_WRN("Unknown power command: 0x%02X", data[0]);
+		return BT_GATT_ERR(BT_ATT_ERR_NOT_SUPPORTED);
+	}
+
+	return len;
+}
+
+/* ------------------------------------------------------------------ */
 /* GATT service definition                                             */
 /* ------------------------------------------------------------------ */
 
@@ -88,6 +125,12 @@ BT_GATT_SERVICE_DEFINE(stride_svc,
 			       battery_read_cb, NULL, NULL),
 	BT_GATT_CCC(battery_ccc_changed,
 		     BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+
+	/* Power Control: Write Without Response */
+	BT_GATT_CHARACTERISTIC(STRIDE_POWER_UUID,
+			       BT_GATT_CHRC_WRITE_WITHOUT_RESP,
+			       BT_GATT_PERM_WRITE,
+			       NULL, power_write_cb, NULL),
 );
 
 /* ------------------------------------------------------------------ */

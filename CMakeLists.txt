@@ -33,6 +33,9 @@ target_sources(app PRIVATE
   
   # OS components
   src/os/threads/threads.c
+
+  # Power management
+  src/power/power_mgmt.c
 )
 
 # NORDIC SDK APP END

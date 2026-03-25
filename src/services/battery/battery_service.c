@@ -15,7 +15,8 @@
 
 LOG_MODULE_REGISTER(battery_service, LOG_LEVEL_INF);
 
-#define BATTERY_MEASURE_INTERVAL_SEC  60
+#define BATTERY_MEASURE_INTERVAL_SEC       60
+#define BATTERY_MEASURE_INTERVAL_IDLE_SEC  300
 #define BATTERY_THRESHOLD_LOW         15
 #define BATTERY_THRESHOLD_CRITICAL     5
 
@@ -112,6 +113,7 @@ static uint8_t battery_measure(void)
 
 static bool alert_low_fired;
 static bool alert_critical_fired;
+static bool battery_idle_mode;
 
 static void battery_work_handler(struct k_work *work);
 static K_WORK_DELAYABLE_DEFINE(battery_work, battery_work_handler);
@@ -138,7 +140,11 @@ static void battery_work_handler(struct k_work *work)
 		alert_low_fired = true;
 	}
 
-	k_work_schedule(&battery_work, K_SECONDS(BATTERY_MEASURE_INTERVAL_SEC));
+	uint32_t interval = battery_idle_mode
+		? BATTERY_MEASURE_INTERVAL_IDLE_SEC
+		: BATTERY_MEASURE_INTERVAL_SEC;
+
+	k_work_schedule(&battery_work, K_SECONDS(interval));
 }
 
 int battery_service_init(void)
@@ -169,4 +175,19 @@ int battery_service_init(void)
 void battery_service_notify_now(void)
 {
 	k_work_reschedule(&battery_work, K_NO_WAIT);
+}
+
+void battery_service_set_idle(bool idle)
+{
+	battery_idle_mode = idle;
+
+	uint32_t interval = idle
+		? BATTERY_MEASURE_INTERVAL_IDLE_SEC
+		: BATTERY_MEASURE_INTERVAL_SEC;
+
+	LOG_INF("Battery polling: %s (%us interval)",
+		idle ? "idle" : "active", interval);
+
+	/* Reschedule with the new interval — cancels any pending work first */
+	k_work_reschedule(&battery_work, K_SECONDS(interval));
 }

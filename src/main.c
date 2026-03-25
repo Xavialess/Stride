@@ -17,6 +17,7 @@
 #include <ble/ble_service.h>
 #include <ble/stride_service.h>
 #include <battery/battery_service.h>
+#include <power/power_mgmt.h>
 #include <gpio/gpio.h>
 #include <os/threads.h>
 #include <haptics/haptic_service.h>
@@ -39,6 +40,9 @@ int main(void)
 		LOG_ERR("GPIO initialization failed (err %d)", err);
 		gpio_error_state();
 	}
+
+	/* Initialize power management — starts in idle, suspends LED thread */
+	power_mgmt_init();
 
 	/* Initialize BLE subsystem */
 	err = ble_service_init();

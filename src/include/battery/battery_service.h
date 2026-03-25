@@ -7,6 +7,8 @@
 #ifndef BATTERY_SERVICE_H
 #define BATTERY_SERVICE_H
 
+#include <stdbool.h>
+
 /**
  * @brief Initialize battery monitoring
  *
@@ -24,5 +26,15 @@ int battery_service_init(void);
  * the current level right away without waiting for the periodic timer.
  */
 void battery_service_notify_now(void);
+
+/**
+ * @brief Set battery polling to idle (slow) or active (normal) rate
+ *
+ * In idle mode the polling interval is extended to 5 minutes to reduce
+ * unnecessary ADC reads and I2C traffic while the device is not in use.
+ *
+ * @param idle true to enter slow-poll idle, false to restore normal rate
+ */
+void battery_service_set_idle(bool idle);
 
 #endif /* BATTERY_SERVICE_H */
