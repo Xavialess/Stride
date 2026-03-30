@@ -110,14 +110,14 @@ static const uint8_t fx_ble_paired[] = {
 	DRV2605L_EFFECT_SOFT_BUMP_30,
 };
 
-/* Low battery bip: single soft click at 30% */
+/* Low battery bip: smooth hum at lower intensity */
 static const uint8_t fx_low_bip[] = {
-	DRV2605L_EFFECT_STRONG_CLICK_30,
+	DRV2605L_EFFECT_SMOOTH_HUM_5,
 };
 
-/* Critical battery bip: single sharp tick at 100% */
+/* Critical battery bip: smooth hum at full intensity */
 static const uint8_t fx_critical_bip[] = {
-	DRV2605L_EFFECT_SHARP_TICK_1,
+	DRV2605L_EFFECT_SMOOTH_HUM_1,
 };
 
 /* Spare A: long smooth hum — ambient/calm state indicator */
@@ -133,6 +133,25 @@ static const uint8_t fx_spare_b[] = {
 /* Spare C: medium pulsing — rhythmic ongoing state */
 static const uint8_t fx_spare_c[] = {
 	DRV2605L_EFFECT_PULSING_MEDIUM_1,
+};
+
+/* Veer: single soft bump at 60% — gentle nudge, weaker than a turn */
+static const uint8_t fx_veer[] = {
+	DRV2605L_EFFECT_SOFT_BUMP_60,
+};
+
+/* Sharp turn: strong click + buzz + click + buzz — more urgent than TURN */
+static const uint8_t fx_sharp_turn[] = {
+	DRV2605L_EFFECT_STRONG_CLICK_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_CLICK_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+};
+
+/* Backward / U-turn: alternating motor long buzz — center/omnidirectional feel */
+static const uint8_t fx_backward_hit[] = {
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
+	DRV2605L_EFFECT_STRONG_BUZZ_100,
 };
 
 /* ------------------------------------------------------------------ */
@@ -280,6 +299,34 @@ static const struct haptic_pattern_step steps_spare_c[] = {
 	{ MOTOR_RIGHT, fx_spare_c, 1, 0 },
 };
 
+/* Veer left: single soft bump at 60% — left only, weaker than TURN_LEFT */
+static const struct haptic_pattern_step steps_veer_left[] = {
+	{ MOTOR_LEFT, fx_veer, 1, 0 },
+};
+
+/* Veer right: single soft bump at 60% — right only, weaker than TURN_RIGHT */
+static const struct haptic_pattern_step steps_veer_right[] = {
+	{ MOTOR_RIGHT, fx_veer, 1, 0 },
+};
+
+/* Sharp left: strong double pulse — left only, more urgent than TURN_LEFT */
+static const struct haptic_pattern_step steps_sharp_left[] = {
+	{ MOTOR_LEFT, fx_sharp_turn, 4, 0 },
+};
+
+/* Sharp right: strong double pulse — right only, more urgent than TURN_RIGHT */
+static const struct haptic_pattern_step steps_sharp_right[] = {
+	{ MOTOR_RIGHT, fx_sharp_turn, 4, 0 },
+};
+
+/* Backward / U-turn: alternating L/R double buzz — omnidirectional center feel */
+static const struct haptic_pattern_step steps_backward[] = {
+	{ MOTOR_LEFT,  fx_backward_hit, 2, 100 },
+	{ MOTOR_RIGHT, fx_backward_hit, 2, 100 },
+	{ MOTOR_LEFT,  fx_backward_hit, 2, 100 },
+	{ MOTOR_RIGHT, fx_backward_hit, 2, 0 },
+};
+
 /* ------------------------------------------------------------------ */
 /* Master pattern lookup table                                         */
 /* ------------------------------------------------------------------ */
@@ -308,6 +355,11 @@ static const struct haptic_pattern_def predefined_patterns[HAPTIC_PREDEFINED_COU
 	[HAPTIC_PATTERN_SPARE_A]          = { steps_spare_a,          ARRAY_SIZE(steps_spare_a) },
 	[HAPTIC_PATTERN_SPARE_B]          = { steps_spare_b,          ARRAY_SIZE(steps_spare_b) },
 	[HAPTIC_PATTERN_SPARE_C]          = { steps_spare_c,          ARRAY_SIZE(steps_spare_c) },
+	[HAPTIC_PATTERN_VEER_LEFT]        = { steps_veer_left,        ARRAY_SIZE(steps_veer_left) },
+	[HAPTIC_PATTERN_VEER_RIGHT]       = { steps_veer_right,       ARRAY_SIZE(steps_veer_right) },
+	[HAPTIC_PATTERN_SHARP_LEFT]       = { steps_sharp_left,       ARRAY_SIZE(steps_sharp_left) },
+	[HAPTIC_PATTERN_SHARP_RIGHT]      = { steps_sharp_right,      ARRAY_SIZE(steps_sharp_right) },
+	[HAPTIC_PATTERN_BACKWARD]         = { steps_backward,         ARRAY_SIZE(steps_backward) },
 };
 
 /* ------------------------------------------------------------------ */
