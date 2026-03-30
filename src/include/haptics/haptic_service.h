@@ -82,9 +82,15 @@ typedef enum {
 	HAPTIC_PATTERN_TURN_LEFT,
 	HAPTIC_PATTERN_NAV_STOP,
 	HAPTIC_PATTERN_NAV_END,
+	/* Notification patterns */
+	HAPTIC_PATTERN_BLE_PAIRED,
 	/* Battery alert patterns */
 	HAPTIC_PATTERN_LOW_BATTERY,
 	HAPTIC_PATTERN_CRITICAL_BATTERY,
+	/* Spare patterns for future use */
+	HAPTIC_PATTERN_SPARE_A,
+	HAPTIC_PATTERN_SPARE_B,
+	HAPTIC_PATTERN_SPARE_C,
 	HAPTIC_PREDEFINED_COUNT,
 } haptic_predefined_pattern_t;
 

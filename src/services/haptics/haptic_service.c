@@ -81,25 +81,58 @@ static const uint8_t fx_strong_buzz[] = {
 	DRV2605L_EFFECT_STRONG_BUZZ_100
 };
 
-static const uint8_t fx_nav_start_seq[] = {
-	DRV2605L_EFFECT_TRANSITION_RAMP_UP_SHORT_SMOOTH_1,
-	DRV2605L_EFFECT_STRONG_CLICK_100,
-	DRV2605L_EFFECT_SOFT_BUMP_100
-};
-
 static const uint8_t fx_turn_strong[] = {
 	DRV2605L_EFFECT_STRONG_CLICK_100,
 	DRV2605L_EFFECT_STRONG_BUZZ_100,
 	DRV2605L_EFFECT_STRONG_CLICK_100
 };
 
-static const uint8_t fx_soft_bump_ramp_down[] = {
-	DRV2605L_EFFECT_SOFT_BUMP_100,
-	DRV2605L_EFFECT_TRANSITION_RAMP_DOWN_LONG_SMOOTH_1
+/* Nav start: sharp ramp-up punch per motor */
+static const uint8_t fx_nav_start_hit[] = {
+	DRV2605L_EFFECT_TRANSITION_RAMP_UP_SHORT_SHARP_1,
+	DRV2605L_EFFECT_STRONG_CLICK_100,
 };
 
+/* Nav end: smooth ramp-down fade per motor */
+static const uint8_t fx_nav_end_fade[] = {
+	DRV2605L_EFFECT_STRONG_CLICK_60,
+	DRV2605L_EFFECT_TRANSITION_RAMP_DOWN_LONG_SMOOTH_1,
+};
+
+/* Nav stop: long alert burst per step */
 static const uint8_t fx_alert_long[] = {
 	DRV2605L_EFFECT_ALERT_750MS
+};
+
+/* BLE paired: two very gentle soft bumps at 30% — barely-there confirmation */
+static const uint8_t fx_ble_paired[] = {
+	DRV2605L_EFFECT_SOFT_BUMP_30,
+	DRV2605L_EFFECT_SOFT_BUMP_30,
+};
+
+/* Low battery bip: single soft click at 30% */
+static const uint8_t fx_low_bip[] = {
+	DRV2605L_EFFECT_STRONG_CLICK_30,
+};
+
+/* Critical battery bip: single sharp tick at 100% */
+static const uint8_t fx_critical_bip[] = {
+	DRV2605L_EFFECT_SHARP_TICK_1,
+};
+
+/* Spare A: long smooth hum — ambient/calm state indicator */
+static const uint8_t fx_spare_a[] = {
+	DRV2605L_EFFECT_SMOOTH_HUM_1,
+};
+
+/* Spare B: short double sharp tick — quick attention grab */
+static const uint8_t fx_spare_b[] = {
+	DRV2605L_EFFECT_SHORT_DOUBLE_SHARP_TICK_1,
+};
+
+/* Spare C: medium pulsing — rhythmic ongoing state */
+static const uint8_t fx_spare_c[] = {
+	DRV2605L_EFFECT_PULSING_MEDIUM_1,
 };
 
 /* ------------------------------------------------------------------ */
@@ -173,10 +206,12 @@ static const struct haptic_pattern_step steps_buzz[] = {
 
 /* --- Navigation patterns --- */
 
-/* Start: left ramp-up then right ramp-up */
+/* Start: alternating L/R sharp ramp-up punches, high power */
 static const struct haptic_pattern_step steps_nav_start[] = {
-	{ MOTOR_LEFT,  fx_nav_start_seq, 3, 0 },
-	{ MOTOR_RIGHT, fx_nav_start_seq, 3, 0 },
+	{ MOTOR_LEFT,  fx_nav_start_hit, 2, 80 },
+	{ MOTOR_RIGHT, fx_nav_start_hit, 2, 80 },
+	{ MOTOR_LEFT,  fx_nav_start_hit, 2, 80 },
+	{ MOTOR_RIGHT, fx_nav_start_hit, 2, 0 },
 };
 
 /* Turn right: only the RIGHT motor fires */
@@ -199,33 +234,50 @@ static const struct haptic_pattern_step steps_nav_stop[] = {
 	{ MOTOR_RIGHT, fx_strong_buzz, 1, 0 },
 };
 
-/* End: left ramp-down then right ramp-down */
+/* End: alternating L/R smooth ramp-down fades, mirrors nav_start */
 static const struct haptic_pattern_step steps_nav_end[] = {
-	{ MOTOR_LEFT,  fx_soft_bump_ramp_down, 2, 0 },
-	{ MOTOR_RIGHT, fx_soft_bump_ramp_down, 2, 0 },
+	{ MOTOR_LEFT,  fx_nav_end_fade, 2, 80 },
+	{ MOTOR_RIGHT, fx_nav_end_fade, 2, 80 },
+	{ MOTOR_LEFT,  fx_nav_end_fade, 2, 80 },
+	{ MOTOR_RIGHT, fx_nav_end_fade, 2, 0 },
 };
 
-/* Low battery (~15%): two slow pulses on both motors */
-static const uint8_t fx_low_battery[] = {
-	DRV2605L_EFFECT_PULSING_STRONG_1,
-	DRV2605L_EFFECT_PULSING_STRONG_1,
+/* BLE paired: two very gentle bumps at 30% — barely-there confirmation */
+static const struct haptic_pattern_step steps_ble_paired[] = {
+	{ MOTOR_LEFT,  fx_ble_paired, 2, 0 },
+	{ MOTOR_RIGHT, fx_ble_paired, 2, 0 },
 };
 
+/* Low battery (~15%): bip-silence-bip-silence-bip at 30%, alternating motors */
 static const struct haptic_pattern_step steps_low_battery[] = {
-	{ MOTOR_LEFT,  fx_low_battery, 2, 200 },
-	{ MOTOR_RIGHT, fx_low_battery, 2, 0 },
+	{ MOTOR_LEFT,  fx_low_bip, 1, 200 },
+	{ MOTOR_RIGHT, fx_low_bip, 1, 200 },
+	{ MOTOR_LEFT,  fx_low_bip, 1, 0 },
 };
 
-/* Critical battery (~5%): three sharp urgent buzzes on both motors */
-static const uint8_t fx_critical_battery[] = {
-	DRV2605L_EFFECT_STRONG_BUZZ_100,
-	DRV2605L_EFFECT_STRONG_BUZZ_100,
-	DRV2605L_EFFECT_STRONG_BUZZ_100,
-};
-
+/* Critical battery (~5%): bip-silence-bip-silence-bip at 100%, alternating motors */
 static const struct haptic_pattern_step steps_critical_battery[] = {
-	{ MOTOR_LEFT,  fx_critical_battery, 3, 150 },
-	{ MOTOR_RIGHT, fx_critical_battery, 3, 0 },
+	{ MOTOR_LEFT,  fx_critical_bip, 1, 150 },
+	{ MOTOR_RIGHT, fx_critical_bip, 1, 150 },
+	{ MOTOR_LEFT,  fx_critical_bip, 1, 0 },
+};
+
+/* Spare A: long smooth hum on both motors */
+static const struct haptic_pattern_step steps_spare_a[] = {
+	{ MOTOR_LEFT,  fx_spare_a, 1, 0 },
+	{ MOTOR_RIGHT, fx_spare_a, 1, 0 },
+};
+
+/* Spare B: short double sharp tick on both motors */
+static const struct haptic_pattern_step steps_spare_b[] = {
+	{ MOTOR_LEFT,  fx_spare_b, 1, 0 },
+	{ MOTOR_RIGHT, fx_spare_b, 1, 0 },
+};
+
+/* Spare C: medium pulsing on both motors */
+static const struct haptic_pattern_step steps_spare_c[] = {
+	{ MOTOR_LEFT,  fx_spare_c, 1, 0 },
+	{ MOTOR_RIGHT, fx_spare_c, 1, 0 },
 };
 
 /* ------------------------------------------------------------------ */
@@ -250,8 +302,12 @@ static const struct haptic_pattern_def predefined_patterns[HAPTIC_PREDEFINED_COU
 	[HAPTIC_PATTERN_TURN_LEFT]        = { steps_turn_left,        ARRAY_SIZE(steps_turn_left) },
 	[HAPTIC_PATTERN_NAV_STOP]         = { steps_nav_stop,         ARRAY_SIZE(steps_nav_stop) },
 	[HAPTIC_PATTERN_NAV_END]          = { steps_nav_end,          ARRAY_SIZE(steps_nav_end) },
+	[HAPTIC_PATTERN_BLE_PAIRED]       = { steps_ble_paired,       ARRAY_SIZE(steps_ble_paired) },
 	[HAPTIC_PATTERN_LOW_BATTERY]      = { steps_low_battery,      ARRAY_SIZE(steps_low_battery) },
 	[HAPTIC_PATTERN_CRITICAL_BATTERY] = { steps_critical_battery, ARRAY_SIZE(steps_critical_battery) },
+	[HAPTIC_PATTERN_SPARE_A]          = { steps_spare_a,          ARRAY_SIZE(steps_spare_a) },
+	[HAPTIC_PATTERN_SPARE_B]          = { steps_spare_b,          ARRAY_SIZE(steps_spare_b) },
+	[HAPTIC_PATTERN_SPARE_C]          = { steps_spare_c,          ARRAY_SIZE(steps_spare_c) },
 };
 
 /* ------------------------------------------------------------------ */
