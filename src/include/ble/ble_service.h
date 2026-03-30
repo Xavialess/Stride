@@ -61,4 +61,13 @@ struct bt_conn *ble_get_auth_conn(void);
  */
 void ble_confirm_passkey(bool accept);
 
+/**
+ * @brief Stop BLE advertising and disable the Bluetooth stack
+ *
+ * Called as part of the system shutdown sequence before entering System OFF.
+ * Stops advertising, disconnects any active connection, and disables BT so
+ * the peer receives a clean disconnect event rather than a timeout.
+ */
+void ble_service_stop(void);
+
 #endif /* BLE_SERVICE_H */

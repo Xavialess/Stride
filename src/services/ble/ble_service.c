@@ -386,6 +386,24 @@ struct bt_conn *ble_get_auth_conn(void)
 }
 
 /**
+ * @brief Stop BLE advertising and disable the Bluetooth stack
+ */
+void ble_service_stop(void)
+{
+	k_work_cancel_delayable(&adv_slow_work);
+	k_work_cancel_delayable(&adv_work);
+
+	bt_le_adv_stop();
+
+	if (current_conn) {
+		bt_conn_disconnect(current_conn, BT_HCI_ERR_REMOTE_POWER_OFF);
+	}
+
+	bt_disable();
+	LOG_INF("BLE stopped");
+}
+
+/**
  * @brief Confirm passkey
  */
 void ble_confirm_passkey(bool accept)

@@ -50,5 +50,17 @@ enum power_state power_mgmt_get_state(void);
  */
 void power_mgmt_activity(void);
 
+/**
+ * @brief Perform a clean system shutdown and enter System OFF
+ *
+ * Stops haptics, disconnects BLE, turns off LEDs, then calls sys_poweroff().
+ * The chip enters System OFF (~0.3 µA). The power button (D3/P0.29) is
+ * configured as a wakeup source — pressing it triggers a full hardware reset
+ * and main() restarts from scratch.
+ *
+ * This function never returns.
+ */
+void power_mgmt_shutdown(void);
+
 #endif /* POWER_MGMT_H */
 

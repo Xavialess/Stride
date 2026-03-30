@@ -29,6 +29,23 @@
  */
 / {
 	/*
+	 * Power button on D3 (P0.29).
+	 * Wired: tactile switch between D3 and GND; internal pull-up enabled.
+	 * wakeup-source configures the pin as a PORT-event level sense so it
+	 * can wake the chip from System OFF (GPIOTE edge sense does not work
+	 * in System OFF).
+	 */
+	power_button: power_button {
+		compatible = "gpio-keys";
+		pwr_btn: pwr_btn {
+			gpios = <&xiao_d 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+			label = "Power button";
+			zephyr,code = <INPUT_KEY_POWER>;
+		};
+		wakeup-source;
+	};
+
+	/*
 	 * Battery voltage measurement
 	 * BAT+ — 1MΩ — P0.31 (AIN7) — 1MΩ — GND
 	 * P0.14 enables the divider (active-low, only during ADC sample).
